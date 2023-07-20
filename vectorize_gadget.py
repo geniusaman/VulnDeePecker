@@ -1,135 +1,100 @@
-import re
+"""
+Interface to VulDeePecker project
+"""
 import sys
-
-import warnings
-warnings.filterwarnings("ignore")
-
-from gensim.models import Word2Vec
-import numpy
-
-# Sets for operators
-operators3 = {'<<=', '>>='}
-operators2 = {
-    '->', '++', '--', 
-    '!~', '<<', '>>', '<=', '>=', 
-    '==', '!=', '&&', '||', '+=', 
-    '-=', '*=', '/=', '%=', '&=', '^=', '|='
-    }
-operators1 = { 
-    '(', ')', '[', ']', '.', 
-    '+', '-', '*', '&', '/', 
-    '%', '<', '>', '^', '|', 
-    '=', ',', '?', ':' , ';',
-    '{', '}'
-    }
+import os
+import pandas
+from clean_gadget import clean_gadget
+from vectorize_gadget import GadgetVectorizer
+from blstm_new import BLSTM
 
 """
-Functionality to train Word2Vec model and vectorize gadgets
-Buffers list of tokenized gadgets in memory
-Trains Word2Vec model using list of tokenized gadgets
-Uses trained model embeddings to create 2D gadget vectors
+Parses gadget file to find individual gadgets
+Yields each gadget as list of strings, where each element is code line
+Has to ignore first line of each gadget, which starts as integer+space
+At the end of each code gadget is binary value
+    This indicates whether or not there is vulnerability in that gadget
 """
-class GadgetVectorizer:
-
-    def __init__(self, vector_length):
-        self.gadgets = []
-        self.vector_length = vector_length
-        self.forward_slices = 0
-        self.backward_slices = 0
-
-    """
-    Takes a line of C++ code (string) as input
-    Tokenizes C++ code (breaks down into identifier, variables, keywords, operators)
-    Returns a list of tokens, preserving order in which they appear
-    """
-    @staticmethod
-    def tokenize(line):
-        tmp, w = [], []
-        i = 0
-        while i < len(line):
-            # Ignore spaces and combine previously collected chars to form words
-            if line[i] == ' ':
-                tmp.append(''.join(w))
-                tmp.append(line[i])
-                w = []
-                i += 1
-            # Check operators and append to final list
-            elif line[i:i+3] in operators3:
-                tmp.append(''.join(w))
-                tmp.append(line[i:i+3])
-                w = []
-                i += 3
-            elif line[i:i+2] in operators2:
-                tmp.append(''.join(w))
-                tmp.append(line[i:i+2])
-                w = []
-                i += 2
-            elif line[i] in operators1:
-                tmp.append(''.join(w))
-                tmp.append(line[i])
-                w = []
-                i += 1
-            # Character appended to word list
+def parse_file(filename):
+    with open(filename, "r", encoding="utf8") as file:
+        gadget = []
+        gadget_val = 0
+        for line in file:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if "-" * 33 in line and gadget: 
+                yield clean_gadget(gadget), gadget_val
+                gadget = []
+            elif stripped.split()[0].isdigit():
+                if gadget:
+                    # Code line could start with number (somehow)
+                    if stripped.isdigit():
+                        gadget_val = int(stripped)
+                    else:
+                        gadget.append(stripped)
             else:
-                w.append(line[i])
-                i += 1
-        # Filter out irrelevant strings
-        res = list(filter(lambda c: c != '', tmp))
-        return list(filter(lambda c: c != ' ', res))
+                gadget.append(stripped)
 
-    """
-    Tokenize entire gadget
-    Tokenize each line and concatenate to one long list
-    """
-    @staticmethod
-    def tokenize_gadget(gadget):
-        tokenized = []
-        function_regex = re.compile('FUN(\d)+')
-        backwards_slice = False
-        for line in gadget:
-            tokens = GadgetVectorizer.tokenize(line)
-            tokenized += tokens
-            if len(list(filter(function_regex.match, tokens))) > 0:
-                backwards_slice = True
-            else:
-                backwards_slice = False
-        return tokenized, backwards_slice
+"""
+Uses gadget file parser to get gadgets and vulnerability indicators
+Assuming all gadgets can fit in memory, build list of gadget dictionaries
+    Dictionary contains gadgets and vulnerability indicator
+    Add each gadget to GadgetVectorizer
+Train GadgetVectorizer model, prepare for vectorization
+Loop again through list of gadgets
+    Vectorize each gadget and put vector into new list
+Convert list of dictionaries to dataframe when all gadgets are processed
+"""
+def get_vectors_df(filename, vector_length=100):
+    gadgets = []
+    count = 0
+    vectorizer = GadgetVectorizer(vector_length)
+    for gadget, val in parse_file(filename):
+        count += 1
+        print("Collecting gadgets...", count, end="\r")
+        vectorizer.add_gadget(gadget)
+        row = {"gadget" : gadget, "val" : val}
+        gadgets.append(row)
+    print('Found {} forward slices and {} backward slices'
+          .format(vectorizer.forward_slices, vectorizer.backward_slices))
+    print()
+    print("Training model...", end="\r")
+    vectorizer.train_model()
+    print()
+    vectors = []
+    count = 0
+    for gadget in gadgets:
+        count += 1
+        print("Processing gadgets...", count, end="\r")
+        vector = vectorizer.vectorize(gadget["gadget"])
+        row = {"vector" : vector, "val" : gadget["val"]}
+        vectors.append(row)
+    print()
+    df = pandas.DataFrame(vectors)
+    return df
+            
+"""
+Gets filename, either loads vector DataFrame if exists or creates it if not
+Instantiate neural network, pass data to it, train, test, print accuracy
+"""
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python vuldeepecker.py [filename]")
+        exit()
+    filename = sys.argv[1]
+    parse_file(filename)
+    base = os.path.splitext(os.path.basename(filename))[0]
+    vector_filename = base + "_gadget_vectors.pkl"
+    vector_length = 50
+    if os.path.exists(vector_filename):
+        df = pandas.read_pickle(vector_filename)
+    else:
+        df = get_vectors_df(filename, vector_length)
+        df.to_pickle(vector_filename)
+    blstm = BLSTM(df,name=base)
+    blstm.train()
+    blstm.test()
 
-    """
-    Add input gadget to model
-    Tokenize gadget and buffer it to list
-    """
-    def add_gadget(self, gadget):
-        tokenized_gadget, backwards_slice = GadgetVectorizer.tokenize_gadget(gadget)
-        self.gadgets.append(tokenized_gadget)
-        if backwards_slice:
-            self.backward_slices += 1
-        else:
-            self.forward_slices += 1
-
-    """
-    Uses Word2Vec to create a vector for each gadget
-    Gets a vector for the gadget by combining token embeddings
-    Number of tokens used is min of number_of_tokens and 50
-    """
-    def vectorize(self, gadget):
-        tokenized_gadget, backwards_slice = GadgetVectorizer.tokenize_gadget(gadget)
-        vectors = numpy.zeros(shape=(50, self.vector_length))
-        if backwards_slice:
-            for i in range(min(len(tokenized_gadget), 50)):
-                vectors[50 - 1 - i] = self.embeddings[tokenized_gadget[len(tokenized_gadget) - 1 - i]]
-        else:
-            for i in range(min(len(tokenized_gadget), 50)):
-                vectors[i] = self.embeddings[tokenized_gadget[i]]
-        return vectors
-
-    """
-    Done adding gadgets, now train Word2Vec model
-    Only keep list of embeddings, delete model and list of gadgets
-    """
-    def train_model(self):
-        # Set min_count to 1 to prevent out-of-vocabulary errors
-        model = Word2Vec(self.gadgets, min_count=1, size=self.vector_length, sg=1)
-        self.embeddings = model.wv
-        del model
-        del self.gadgets
+if __name__ == "__main__":
+    main()
