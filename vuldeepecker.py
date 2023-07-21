@@ -6,7 +6,7 @@ import os
 import pandas
 from clean_gadget import clean_gadget
 from vectorize_gadget import GadgetVectorizer
-from blstm import BLSTM
+from blstm_new import BLSTM
 
 """
 Parses gadget file to find individual gadgets
