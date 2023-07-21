@@ -58,6 +58,7 @@ class BLSTM:
         values = self.model.evaluate(self.X_test, self.y_test, batch_size=self.batch_size)
         print("Accuracy is...", values[1])
         predictions = (self.model.predict(self.X_test, batch_size=self.batch_size)).round()
+        print(predictions)
 
         tn, fp, fn, tp = confusion_matrix(np.argmax(self.y_test, axis=1), np.argmax(predictions, axis=1)).ravel()
         print('False positive rate is...', fp / (fp + tn))
@@ -67,3 +68,40 @@ class BLSTM:
         precision = tp / (tp + fp)
         print('Precision is...', precision)
         print('F1 score is...', (2 * precision * recall) / (precision + recall))
+        # Assuming 'predictions' contains the output of the model
+        #predictions = np.array([[1., 0.],
+                           # [1., 0.],
+                           # [1., 0.],
+                            # ... other predictions
+                           # [0., 1.],
+                            #[0., 1.],
+                           # [0., 1.]])
+
+        # Extract vulnerability type predictions (0 or 1) for each code gadget
+        vulnerability_type_predictions = predictions[:, 0]
+
+    # Extract vulnerability location predictions for each code gadget
+        vulnerability_location_predictions = predictions[:, 1]
+
+    # Assuming the output is (batch_size, 2) where each element contains start and end positions
+        print("Shape of vulnerability_location_prediction:", vulnerability_location_predictions.shape)
+        print("Content of vulnerability_location_prediction:", vulnerability_location_predictions)
+
+    # Iterate over individual gadgets and extract their vulnerability locations
+        vulnerability_locations = []
+        for location_prediction in vulnerability_location_predictions:
+          # Assuming 'location_prediction' contains a single binary prediction for the gadget
+          #  Convert binary prediction to integer (0 or 1)
+          location_int = int(location_prediction)
+          if location_int == 1:
+            # If vulnerability exists, append the gadget's location (start, end) to the list
+            start_position = 0  # Replace with the actual start position
+            end_position = 0  # Replace with the actual end position
+            vulnerability_locations.append((start_position, end_position))
+
+    # Print the individual vulnerability location predictions
+     
+    # Print the vulnerability predictions
+        print("Vulnerability Type Prediction:", vulnerability_type_predictions)
+        print("Vulnerability Location Prediction:", vulnerability_location_predictions)
+        print("Vulnerability Locations:", vulnerability_locations)
