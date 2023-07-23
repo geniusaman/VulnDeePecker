@@ -7,6 +7,7 @@ import pandas
 from clean_gadget import clean_gadget
 from vectorize_gadget import GadgetVectorizer
 from blstm_new import BLSTM
+from LSTM_GRU_new import LSTMModel
 
 """
 Parses gadget file to find individual gadgets
@@ -92,9 +93,10 @@ def main():
     else:
         df = get_vectors_df(filename, vector_length)
         df.to_pickle(vector_filename)
-    blstm = BLSTM(df,name=base)
-    blstm.train()
-    blstm.test()
+    #VulnModel = LSTMModel(df,name=base,use_lstm=False)
+    #VulnModel = BLSTM(df,name=base)
+    VulnModel.train()
+    VulnModel.test()
 
 if __name__ == "__main__":
     main()
