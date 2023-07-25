@@ -96,6 +96,7 @@ def main():
         df.to_pickle(vector_filename)
     #VulnModel = LSTMModel(df,name=base,use_lstm=False)
     #VulnModel = BLSTM(df,name=base)
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Disable TensorRT warnings
     VulnModel.train()
     VulnModel.test()
 
