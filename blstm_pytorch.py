@@ -18,6 +18,7 @@ class BidirectionalLSTM(nn.Module):
 class BLSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(BLSTMModel, self).__init__()
+        print("* Using LSTM Network *")
         self.blstm = BidirectionalLSTM(input_size, hidden_size)
         self.fc1 = nn.Linear(hidden_size * 2, 300)
         self.leaky_relu1 = nn.LeakyReLU()
@@ -62,6 +63,7 @@ class BLSTM:
         input_size = vectors.shape[2]
         hidden_size = 300
         output_size = 2
+        
         self.model = BLSTMModel(input_size, hidden_size, output_size)
 
         # Lower learning rate to prevent divergence (equivalent to Adamax with learning rate 0.002)
@@ -69,7 +71,9 @@ class BLSTM:
         self.criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(self.class_weight))
 
     def train(self):
+        print("[+] traning process started.............")
         for epoch in range(4):
+            print("[+] Epoch", '(',epoch,')',"====================->")
             self.model.train()
             for i in range(0, len(self.X_train), self.batch_size):
                 inputs = self.X_train[i:i + self.batch_size]
