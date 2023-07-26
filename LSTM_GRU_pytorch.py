@@ -13,10 +13,10 @@ class LSTMGRUModel(nn.Module):
         self.hidden_size = hidden_size
 
         if use_lstm:
-            print("* Using LSTM Network *")
+            print("* Using PyTorCh-LSTM Network *")
             self.rnn = nn.LSTM(input_size, hidden_size, batch_first=True)
         else:
-            print("* Using GRU Network *")
+            print("* Using PyTorCh-GRU Network *")
             self.rnn = nn.GRU(input_size, hidden_size, batch_first=True)
         self.fc1 = nn.Linear(hidden_size, 300)
         self.leaky_relu1 = nn.LeakyReLU()
