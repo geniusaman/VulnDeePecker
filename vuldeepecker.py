@@ -8,6 +8,8 @@ from clean_gadget import clean_gadget
 from vectorize_gadget import GadgetVectorizer
 from blstm_new import BLSTM
 from LSTM_GRU_new import LSTMModel
+from blstm_pytorch import BLSTModel
+from LSTM_GRU_pytorch import LSTMGRU
 
 
 """
@@ -94,9 +96,13 @@ def main():
     else:
         df = get_vectors_df(filename, vector_length)
         df.to_pickle(vector_filename)
+    
+    
+    #VulnModel = LSTMGRU(df,name=base,use_lstm=False)
+    VulnModel = BLSTModel(df,name=base)
     #VulnModel = LSTMModel(df,name=base,use_lstm=False)
     #VulnModel = BLSTM(df,name=base)
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Disable TensorRT warnings
+   
     VulnModel.train()
     VulnModel.test()
 
