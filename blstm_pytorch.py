@@ -18,7 +18,7 @@ class BidirectionalLSTM(nn.Module):
 class BLSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(BLSTMModel, self).__init__()
-        print("* Using LSTM Network *")
+        print("* Using PyTorCh-BLSTM Network *")
         self.blstm = BidirectionalLSTM(input_size, hidden_size)
         self.fc1 = nn.Linear(hidden_size * 2, 300)
         self.leaky_relu1 = nn.LeakyReLU()
@@ -41,7 +41,7 @@ class BLSTMModel(nn.Module):
         output = self.softmax(x)
         return output
 
-class BLSTM:
+class BLSTModel:
     def __init__(self, data, name="", batch_size=64):
         vectors = np.stack(data["vector"].values)
         labels = data["val"].values
